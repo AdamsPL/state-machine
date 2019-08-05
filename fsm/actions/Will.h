@@ -3,6 +3,6 @@
 template <typename... Handlers>
 struct Will : Handlers...
 {
-	using Handlers::handle...;
+    using Handlers::handle...;
 };
 
