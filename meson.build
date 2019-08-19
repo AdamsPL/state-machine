@@ -10,4 +10,4 @@ find_program('pygmentize')
 custom_target('article',
   output : 'article.pdf',
   input : 'article.tex',
-  command : [xelatex, '-8bit', '-shell-escape', '@INPUT@'])
+  command : [xelatex, '-8bit', '--shell-escape', '@INPUT@'])

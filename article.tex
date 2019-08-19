@@ -8,6 +8,8 @@
 \usepackage{hyperref}
 
 \usetikzlibrary{arrows,automata}
+\usetikzlibrary{external}
+
 \setmainfont{Roboto}
 \setmonofont{Hack}
 \setminted{tabsize=4, style=friendly, fontsize=\footnotesize}
@@ -36,10 +38,10 @@ Let's start with defining a problem that'll serve as a testbed for new ideas. Pr
   \node[state]         (Open) [above right of=Closed] {Open};
   \node[state]         (Locked) [below right of=Closed] {Locked};
 
-  \path (Closed) edge [bend left] node [scale=0.8] {\textit{Lock}}   (Locked)
-			     edge [bend left] node [scale=0.8] {\textit{Open}}   (Open)
-	    (Open)   edge [bend left] node [scale=0.8] {\textit{Close}}  (Closed)
-	    (Locked) edge [dashed, bend left] node [scale=0.8] {\textit{Unlock}} (Closed);
+  \path (Closed) edge [bend left] node [scale=0.8]          {\textit{Lock}}   (Locked)
+                 edge [bend left] node [scale=0.8]          {\textit{Open}}   (Open)
+        (Open)   edge [bend left] node [scale=0.8]          {\textit{Close}}  (Closed)
+        (Locked) edge [dashed, bend left] node [scale=0.8]  {\textit{Unlock}} (Closed);
 \end{tikzpicture}
 
 Besides an additional state, we've introduced two new events \lock{} and \unlock{}. Now, once the door is locked, the only way to open it is to unlock it first. With all that in mind, we can try to implement such a state.
@@ -48,10 +50,10 @@ Besides an additional state, we've introduced two new events \lock{} and \unlock
 \begin{minted}{c++}
 struct LockedState
 {
-	Nothing handle(const OpenEvent&) const { return {}; }
-	Nothing handle(const CloseEvent&) const { return {}; }
-	Nothing handle(const LockEvent&) const { return {}; }
-	TransitionTo<UnlockedState> handle(const UnlockEvent&) const { return {}; };
+    Nothing handle(const OpenEvent&) const { return {}; }
+    Nothing handle(const CloseEvent&) const { return {}; }
+    Nothing handle(const LockEvent&) const { return {}; }
+    TransitionTo<ClosedState> handle(const UnlockEvent&) const { return {}; };
 };
 \end{minted}
 \bigskip
@@ -69,10 +71,10 @@ We can use this struct as a base for some of our states introducing some common 
 \begin{minted}{c++}
 struct ClosedState : ByDefault<Nothing>
 {
-	using ByDefault:handle;
+    using ByDefault:handle;
 
-	TransitionTo<LockedState> handle(const LockEvent&) const { return {}; }
-	TransitionTo<OpenState> handle(const OpenEvent&) const { return {}; };
+    TransitionTo<LockedState> handle(const LockEvent&) const { return {}; }
+    TransitionTo<OpenState> handle(const OpenEvent&) const { return {}; };
 };
 \end{minted}
 \bigskip
@@ -85,12 +87,12 @@ Additionally, handlers for \code{LockEvent} and \code{OpenEvent} don't do anythi
 \bigskip
 \begin{minted}{c++}
 struct ClosedState : ByDefault<Nothing>,
-					 On<LockEvent, TransitionTo<LockedState>>,
-					 On<OpenEvent, TransitionTo<OpenState>>
+                     On<LockEvent, TransitionTo<LockedState>>,
+                     On<OpenEvent, TransitionTo<OpenState>>
 {
-	using ByDefault::handle;
-	using On<LockEvent, TransitionTo<LockedState>>::handle;
-	using On<OpenEvent, TransitionTo<OpenState>>::handle;
+    using ByDefault::handle;
+    using On<LockEvent, TransitionTo<LockedState>>::handle;
+    using On<OpenEvent, TransitionTo<OpenState>>::handle;
 };
 \end{minted}
 \bigskip
@@ -106,8 +108,8 @@ Now we can get rid of all those \code{using} declarations.
 \bigskip
 \begin{minted}{c++}
 struct ClosedState : public Will<ByDefault<Nothing>,
-								 On<LockEvent, TransitionTo<LockedState>>,
-								 On<CloseEvent, TransitionTo<ClosedState>>>
+                                 On<LockEvent, TransitionTo<LockedState>>,
+                                 On<OpenEvent, TransitionTo<OpenState>>>
 {
 };
 \end{minted}
@@ -120,7 +122,7 @@ Now, that's much better :). But our work is still far from complete. Even though
 StateMachine() = default;
 
 StateMachine(States... states)
-	: states(std::move(states)...)
+    : states(std::move(states)...)
 {
 }
 \end{minted}
@@ -134,20 +136,20 @@ template <typename... Actions>
 class OneOf
 {
 public:
-	template <typename T>
-	OneOf(T&& arg)
-		: options(std::forward<T>(arg))
-	{
-	}
+    template <typename T>
+    OneOf(T&& arg)
+        : options(std::forward<T>(arg))
+    {
+    }
 
-	template <typename Machine>
-	void execute(Machine& machine)
-	{
-		std::visit([&machine](auto& action){ action.execute(machine); }, options);
-	}
+    template <typename Machine>
+    void execute(Machine& machine)
+    {
+        std::visit([&machine](auto& action){ action.execute(machine); }, options);
+    }
 
 private:
-	std::variant<Actions...> options;
+    std::variant<Actions...> options;
 };
 \end{minted}
 \bigskip
@@ -164,20 +166,20 @@ Now, with that in place, we can update both the \unlock{} event and \locked{} st
 \begin{minted}{c++}
 struct UnlockEvent
 {
-	uint32_t key;
+    uint32_t key;
 };
 
 class LockedState : public ByDefault<Nothing>
 {
 public:
-	using ByDefault::handle;
+    using ByDefault::handle;
 
-	LockedState(uint32_t key)
-		: key(key)
-	{
-	}
+    LockedState(uint32_t key)
+        : key(key)
+    {
+    }
 
-	Maybe<TransitionTo<ClosedState>> handle(const UnlockEvent& e) const
+    Maybe<TransitionTo<ClosedState>> handle(const UnlockEvent& e) const
     {
         if (e.key == key) {
             return TransitionTo<ClosedState>{};
@@ -195,8 +197,24 @@ Great! That's exactly what we wanted! We've defined a state machine that resembl
 
 \section*{Taking things further}
 
-What if we wanted to model some kind of programmable door. Like a safe in some hotels, where you can define your own pin code, but you can do that only when the safe is unlocked. We can add a 'newKey' field to \lock{} event. That's not a big problem. The biggest hurdle is how to inform \locked{} state about that new value? We could, for example, define a new action type that would update a given state. Even though that would solve our problem, it's not the best solution, since it requires \closed{} state to know the internals of a completely different state - \locked{}. The true problem that we need to solve lies even deeper. Instead of trying to pass this information from one state to the other, we should focus on giving the state information when it was entered and under what circumstances. For example, we could use this information to open a socket or maintain a database connection for as long as we're in that state and tear down everything once we leave.
+What if we wanted to model some kind of programmable door. Like a safe in some hotels, where you can define your own pin code, but you can do that only when the safe is unlocked. A sequence diagram for such door could look like this:
 
+\begin{tikzpicture}
+    \draw (-3,0) -- (-3,-5) (3,0) -- (3,-5) (9, 0) -- (9,-5);
+    \node at (-3,.3) {\textbf{Closed state}};
+    \node at (3,.3) {\textbf{Locked state}};
+    \node at (9,.3) {\textbf{Environment}};
+    \draw[->, thick] (-3,-1) -- node[midway,above] {\textit{Lock(key=1234)}} (3,-1);
+    \draw[<-, thick] (3,-2) -- node[midway,above]  {\textit{Unlock(key=0000)}} (9,-2);
+    \draw[<-, thick] (3,-3) -- node[midway,above]  {\textit{Unlock(key=1222)}} (9,-3);
+    \draw[<-, thick] (3,-4) -- node[midway,above]  {\textit{Unlock(key=1234)}} (9,-4);
+    \draw[<-, thick] (-3,-4) -- node[midway,above] {\textit{Transition}} (3,-4);
+\end{tikzpicture}
+
+\subsection*{Locking and unlocking}
+Let's start by adding a 'newKey' field to \lock{} event. That's not a big problem. The biggest hurdle is how to inform \locked{} state about that new value? We could, for example, define a new action type that would update a given state. Even though that would solve our problem, it's not the best solution, since it requires \closed{} state to know the internals of a completely different state - \locked{}. The true problem that we need to solve lies even deeper. Instead of trying to pass this information from one state to the other, we should focus on giving the state information when it was entered and under what circumstances. For example, we could use this information to open a socket or maintain a database connection for as long as we're in that state and tear down everything once we leave.
+
+\subsection*{Necessary changes}
 To start, we need to provide a bit more information to the actions. To call appropriate methods, \code{TransitionTo} action would need to know what's the current state and what event triggered the action. Apart from that, we want to grab a reference to the newly selected state when we make a transition. Let's update our state machine's implementation to provide that extra information.
 
 \bigskip
@@ -204,24 +222,26 @@ To start, we need to provide a bit more information to the actions. To call appr
 template <typename Event>
 void handle(const Event& event)
 {
-	auto passEventToState = [this, &event] (auto statePtr) {
-		auto action = statePtr->handle(event);
-		action.execute(*this, *statePtr, event);
-	};
-	std::visit(passEventToState, currentState);
+    auto passEventToState = [this, &event] (auto statePtr) {
+        auto action = statePtr->handle(event);
+        action.execute(*this, *statePtr, event);
+    };
+    std::visit(passEventToState, currentState);
 }
 
 template <typename State>
 State& transitionTo()
 {
-	auto& state = std::get<State>(states);
-	currentState = &state;
-	return state;
+    auto& state = std::get<State>(states);
+    currentState = &state;
+    return state;
 }
 \end{minted}
 \bigskip
 
-Now let's update the \code{TransitionTo} action. We want to call \code{onLeave} method the on previous state and \code{onEnter} on the destination state, but how do we know that these methods are present? We could enforce it, just like it's done with \code{handle} methods, but that would lead to a lot of unnecessary code. We can use SFINAE (\href{https://en.cppreference.com/w/cpp/language/sfinae}{link}) to detect if such a method exists. If it does, we'll call it, if not, we'll simply ignore it. You may ask why we didn't use that trick with \code{handle} methods and implemented a bunch of helpers just to provide some default behavior? That's because the situation is a little bit different. Formally speaking, a transition function should be defined for each state and each event. Furthermore, there are situations when we want to trigger a compilation error when we add a new event and one of the existing states doesn't know how to handle it, instead of blindly ignoring it. With that in mind, let's update the \code{TransitionTo} action.
+Now let's update the \code{TransitionTo} action. We want to call \code{onLeave} method the on previous state and \code{onEnter} on the destination state, but how do we know that these methods are present? We could enforce it, just like it's done with \code{handle} methods, but that would lead to a lot of unnecessary code. We can use SFINAE (\href{https://en.cppreference.com/w/cpp/language/sfinae}{link}) to detect if such a method exists. If it does, we'll call it, if not, we'll simply ignore it.
+
+You may ask why we didn't use that trick with \code{handle} methods and implemented a bunch of helpers just to provide some default behavior? That's because the situation is a little bit different. Formally speaking, a transition function should be defined for each state and each event. Furthermore, there are situations when we want to trigger a compilation error when we add a new event and one of the existing states doesn't know how to handle it, instead of blindly ignoring it. With that in mind, let's update the \code{TransitionTo} action.
 
 \bigskip
 \inputminted[firstline=3]{c++}{../fsm/actions/TransitionTo.h}
@@ -233,7 +253,7 @@ Thanks to SFINAE, we can detect if a \code{onEnter} or \code{onLeave} method was
 \begin{minted}{c++}
 void onEnter(const LockEvent& e)
 {
-	key = e.newKey;
+    key = e.newKey;
 }
 \end{minted}
 \bigskip
@@ -241,5 +261,5 @@ void onEnter(const LockEvent& e)
 \section*{Wrapping things up}
 In this article, we explored how previous state machine implementation could be enhanced to support optional transitions and how to make it easier to use. States can now define custom \code{onEnter} and \code{onLeave} methods that will be called when the state is entered or left. If you want to play with that code, you can grab it \href{https://github.com/AdamsPL/state-machine}{here}.
 
-In the next part of the article we'll play with adding support for tracing and debugging information and we'll try to generate a nice transition table from the StateMachine type so stay tuned! :)
+In the next part of the article we'll play with adding support for tracing and debugging information and we'll try to infer a nice transition table solely based on the StateMachine type so stay tuned! :)
 \end{document}
