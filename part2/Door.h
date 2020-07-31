@@ -1,10 +1,12 @@
-#include <fsm/actions/Nothing.h>
-#include <fsm/actions/TransitionTo.h>
-#include <fsm/actions/Maybe.h>
-#include <fsm/actions/ByDefault.h>
-#include <fsm/actions/On.h>
-#include <fsm/actions/Will.h>
-#include <fsm/StateMachine.h>
+#include <cstdint>
+
+#include "fsm/StateMachine.h"
+#include "fsm/actions/Nothing.h"
+#include "fsm/actions/TransitionTo.h"
+#include "fsm/actions/Maybe.h"
+#include "fsm/actions/ByDefault.h"
+#include "fsm/actions/On.h"
+#include "fsm/actions/Will.h"
 
 struct OpenEvent
 {
@@ -54,7 +56,7 @@ public:
         key = e.newKey;
     }
 
-    Maybe<TransitionTo<ClosedState>> handle(const UnlockEvent& e) const
+    Maybe<TransitionTo<ClosedState>> handle(const UnlockEvent& e)
     {
         if (e.key == key) {
             return TransitionTo<ClosedState>{};
@@ -67,14 +69,3 @@ private:
 };
 
 using Door = StateMachine<ClosedState, OpenState, LockedState>;
-
-int main()
-{
-    Door door{ClosedState{}, OpenState{}, LockedState{0x11}};
-
-    door.handle(LockEvent{1234});
-    door.handle(UnlockEvent{2});
-    door.handle(UnlockEvent{1234});
-
-    return 0;
-}

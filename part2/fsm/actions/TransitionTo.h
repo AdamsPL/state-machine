@@ -4,13 +4,13 @@ template <typename TargetState>
 class TransitionTo
 {
 public:
-    template <typename Machine, typename State, typename Event>
-    void execute(Machine& machine, State& prevState, const Event& event)
-    {
+	template <typename Machine, typename State, typename Event>
+	void execute(Machine& machine, State& prevState, const Event& event)
+	{
         leave(prevState, event);
-        TargetState& newState = machine.template transitionTo<TargetState>();
+		TargetState& newState = machine.template transitionTo<TargetState>();
         enter(newState, event);
-    }
+	}
 
 private:
     void leave(...)
