@@ -262,7 +262,8 @@ __attribute__((noinline)) void test()
     constexpr StaticString first{"<"};
     constexpr StaticString second{"hello"};
     constexpr StaticString third{">"};
-    puts(first + second + third);
+    constexpr StaticString result = first + second + third;
+    puts(result.data());
 }
 ```
 
@@ -284,6 +285,6 @@ As you can see the compiler got rid of most of the copies and reassignments and 
 ## Summary
 In this article, we explored the possibility to join strings at compile time. The feat itself might not be so impressive, but it's one of the things needed to generate a transition table at compile time. As always, you can find the code in my GitHub repository: ([link](https://github.com/AdamsPL/state-machine/))
 
-In the next article, we'll play a bit with the type system, trying to extract as much information as possible with a hint of functional programming ;) 
+In the next article, we'll play a bit with the type system, trying to extract as much information as possible with a hint of functional programming ;)
 
 Stay tuned!
