@@ -1,20 +1,20 @@
-# Implementing a State Machine in C++17 – part 3 - compile time strings
+# Implementing a State Machine in C++17 – part 3 - compile-time strings
 
 ## Introduction
-In previous series of articles ([part1](https://sii.pl/blog/implementing-a-state-machine-in-c17/), [part2](https://sii.pl/blog/implementing-a-state-machine-in-c17-part-2/)) we've played with a simple state machine with some basic functionality. As the machine grows bigger, the need for debugging utilities becomes more important. In order to implement such utilities we need to do some ground work first. All state, event and action names are known at compile time and for most of them we could easily generate a string with the name during compilation. What's problematic is that some of the types could be parametrized and would require some form of compile time string concatenation. That's exactly what we are going to explore in this article :)
+In previous series of articles ([part1](https://sii.pl/blog/implementing-a-state-machine-in-c17/), [part2](https://sii.pl/blog/implementing-a-state-machine-in-c17-part-2/)) we've played with a simple state machine with some basic functionality. As the machine grows bigger, the need for debugging utilities becomes more important. To implement such utilities we need to do some groundwork first. All state, event, and action names are known at compile-time and for most of them, we could easily generate a string with the name during compilation. What's problematic is that some of the types could be parametrized and would require some form of compile-time string concatenation. That's exactly what we are going to explore in this article :)
 
 ## Basics
 ![](./string.jpg)
 
-As most of you probably know, string literals in C++ are of type **`const char[N]`** and what's more important they always include the terminating null character. Another important fact is that string literals are known at compile time, which means we can do something like this:
+As most of you probably know, string literals in C++ are of type **`const char[N]`**, and what's more important they always include the terminating null character. Another important fact is that string literals are known at compile-time, which means we can do something like this:
 
 ```cpp
 constexpr char[] value = "Foo";
 ```
 
-For each variable marked with **`constexpr`** the compiler enforces that it's value must be calculated during compilation (C++20 expands this idea with **`consteval`** and **`constinit`** keywords, but that's a story for another article). For functions there's a slight difference. There are some restrictions placed on **`constexpr`** functions so that their return value could be used as a compile time constant, but what's important is that the compiler will still generate an 'ordinary' (non-constexpr) function that would be used when non-constexpr arguments are passed.
+For each variable marked with **`constexpr`** the compiler enforces that it's value must be calculated during compilation (C++20 expands this idea with **`consteval`** and **`constinit`** keywords, but that's a story for another article). For functions, there's a slight difference. There are some restrictions placed on **`constexpr`** functions so that their return value could be used as a compile-time constant, but what's important is that the compiler will still generate an 'ordinary' (non-constexpr) function that would be used when non-constexpr arguments are passed.
 
-So, getting back to string literals. Unfortunately there are no easy ways to return a native array from a function. What's even more disappointing is that extra care needs to be taken when passing arrays to functions. Take a look at this example:
+So, getting back to string literals. Unfortunately, there are no easy ways to return a native array from a function. What's even more disappointing is that extra care needs to be taken when passing arrays to functions. Take a look at this example:
 
 ```cpp
 void trap(const char arr[7])
@@ -23,7 +23,7 @@ void trap(const char arr[7])
 }
 ```
 
-Since array arguments automatically decay to pointers this code is basically equivalent to:
+Since array arguments automatically decay to pointers this code is equivalent to:
 
 ```cpp
 void trap(const char* arr)
@@ -37,27 +37,27 @@ What's even more annoying we cannot use template parameter deduction to 'extract
 
 ```cpp
 template <typename T, std::size_t N>
-void trap(T arr[N]) // <-- This doesn't work :(
+void trap(T arr[N]) // <-- This doesn't work
 {
     std::cout << (sizeof(T) * N) << std::endl;
 }
 ```
 
-Fortunately there's a neat little C++ trick that we can use here. Even though arrays automatically decay to pointers, references to arrays do not follow this rule...
+Fortunately, there's a neat little C++ trick that we can use here. Even though arrays automatically decay to pointers, references to arrays do not follow this rule...
 
 ```cpp
 template <typename T, std::size_t N>
 void trap(T (&arr)[N]) // <-- Works!
 {
-    std::cout << sizeof(arr) << std::endl; // <-- This also works :)
+    std::cout << sizeof(arr) << std::endl; // <-- This also works
 }
 ```
 
-Syntax looks a bit odd due to the parenthesis, but at least it works :) . Since storing a reference to an array (which might be temporary value) is not always the best idea, we'll use **`std::array`** to hold the values. It's just a thin wrapper around a regular array and most of its methods are already **`constexpr`**. A bit of required functionality is missing though, so we'll need to implement it ourselves.
+The syntax looks a bit odd due to the parenthesis, but at least it works :) . Since storing a reference to an array (which might be a temporary value) is not always the best idea, we'll use **`std::array`** to hold the values. It's just a thin wrapper around a regular array and most of its methods are already **`constexpr`**. A bit of required functionality is missing though, so we'll need to implement it ourselves.
 
 ## Extending std::array
 
-As we discussed before, a string literal is just an array of characters and since we'll be working mostly with **`std::array`** we need to have a mechanism to convert one to another. Let's start with the conversion from a regular array. **`std::array`** uses aggregate initialisation so we cannot simply pass an array as a constructor argument. So we're on our own here. There are of course multiple ways to do implement such function. Let's start with something based on index sequences and parameter packs.
+As we discussed before, a string literal is just an array of characters and since we'll be working mostly with **`std::array`** we need to have a mechanism to convert one to another. Let's start with the conversion from a regular array. **`std::array`** uses aggregate initialization so we cannot simply pass an array as a constructor argument. So we're on our own here. There are of course multiple ways to do implement such a function. Let's start with something based on index sequences and parameter packs.
 
 ```cpp
 template <typename T, std::size_t N>
@@ -66,6 +66,7 @@ constexpr std::array<T, N> toStdArray(T (&arr)[N])
     return toStdArray(arr, std::make_index_sequence<N>());
 }
 ```
+
 The rough idea is quite straightforward. We start with capturing the array by reference, then we create an index sequence from 0 to (N-1) and pass it to a template with a parameter pack
 
 ```cpp
@@ -75,8 +76,9 @@ constexpr std::array<T, N> toStdArray(T (&arr)[N], std::index_sequence<Idx...>)
     return {arr[Idx]...};
 }
 ```
+
 Here we just need to expand the parameter pack containing the indexes and we're ready to construct the array. Note that **`std::index_sequence`** is only used to deduce a parameter pack containing all the numbers 0 to N-1.
-Ok, we know how to construct a **`std::array`** out of a regular array. Now we need to implement a function that combines two arrays together.
+Ok, we know how to construct an **`std::array`** out of a regular array. Now we need to implement a function that combines two arrays.
 
 ```cpp
 template <typename T, std::size_t LeftSize, std::size_t RightSize, std::size_t... LeftIdx, std::size_t... RightIdx>
@@ -95,7 +97,8 @@ constexpr std::array<T, LeftSize + RightSize> join(const std::array<T, LeftSize>
     return join(lhs, rhs, std::make_index_sequence<LeftSize>(), std::make_index_sequence<RightSize>());
 }
 ```
-Basically that's the same idea but with a bit more template parameters :) .
+
+That's the same idea but with a bit more template parameters :) .
 
 There's one slight detail still missing. Remember that all string literals end with a null value at the end and we don't want that value to end up in the middle of a newly joined string. We need a mechanism to trim or in more general terms, resize the array.
 
@@ -113,9 +116,10 @@ constexpr std::array<T, NewSize> resize(const std::array<T, OldSize>& arr)
     return resize<NewSize>(arr, std::make_index_sequence<minSize>());
 }
 ```
-Biggest difference here is that we can specify the result array size, so we could create a new, bigger array and use the previous one as initial values.
 
-As a last utility we'll implement a `areEqual` function. Even though **`std::array`** provides an equality operator it's not marked as constexpr (but will be in C++20) and we can't use it. We'll once again use the **`std::index_sequence`** trick, but this time we'll also use a fold expresion (introduced in C++17) to generate a big boolean expression comparing all the elements.
+The biggest difference here is that we can specify the result array size, so we could create a new, bigger array and use the previous one as initial values.
+
+As a last utility function, we'll implement `areEqual`. Even though **`std::array`** provides an equality operator, it's not marked as constexpr (but will be in C++20) and we can't use it. We'll once again use the **`std::index_sequence`** trick, but this time we'll also use a fold expression (introduced in C++17) to generate a big boolean expression comparing all the elements.
 
 ```cpp
 template <typename T, std::size_t N, std::size_t... Idx>
@@ -135,8 +139,8 @@ The fold expression will expand to someting like: `(lhs[0] == rhs[0]) && (lhs[1]
 
 # Compile time tests
 
-**`constexpr`** modifier on functions allows those functions to be used in static assertions. What we can achieve with it is that we can create simple compile-time tests that could be included in the header. When we make a mistake or a typo the compiler would see a failed **`static_assert`** and stop the compilation with an error. In other words, the code compiles only when all the tests pass, which is pretty neat. On the other hand we don't want to include test-only code in the resulting binary, so we need add some special measures to circumvent it.
-First of all it would be a good idea to wrap the code in an anonymous namespace. This causes all the functions in that namespace to have an internal linkage so most compilers would be able to remove those functions if they're not called in the same file. Unfortunately this also leads to a warning. There's an easy fix for that. We could mark those functions with a **`maybe_unused`** attribute.
+**`constexpr`** modifier on functions allows those functions to be used in static assertions. What we can achieve with it is that we can create simple compile-time tests that could be included in the header. When we make a mistake or a typo the compiler would see a failed **`static_assert`** and stop the compilation with an error. In other words, the code compiles only when all the tests pass, which is pretty neat. On the other hand, we don't want to include test-only code in the resulting binary, so we need to add some special measures to circumvent it.
+First of all, it would be a good idea to wrap the code in an anonymous namespace. This causes all the functions in that namespace to have an internal linkage so most compilers would be able to remove those functions if they're not called in the same file. Unfortunately, this also leads to a warning. There's an easy fix for that. We could mark those functions with a **`maybe_unused`** attribute.
 
 ```cpp
 namespace tests
@@ -174,7 +178,8 @@ namespace
 ```
 
 # Creating **`StaticString`** class
-Now we have all the necessary tools to create **`StaticString`** class. The class itself needs to be a template parametrized by string length, but hopefully in most cases the compiler will be able to deduce the exact value for us. The most convenient way to create a **`StaticString`** instance would be to create it from a string literal and since we plan to store the data in a **`std::array`** let's add another constructor for that case.
+
+Now we have all the necessary tools to create **`StaticString`** class. The class itself needs to be a template parametrized by string length, but hopefully in most cases, the compiler will be able to deduce the exact value for us. The most convenient way to create a **`StaticString`** instance would be to create it from a string literal and since we plan to store the data in a **`std::array`** let's add another constructor for that case.
 
 ```cpp
 template <std::size_t N>
@@ -195,7 +200,7 @@ private:
 };
 ```
 
-Now it's time to implement the main functionality - ability to add two **`StaticStrings`** together. The operation itself is pretty straightforward with two minor details. First of all, we need to take the null character into consideration when joining the strings, but that can be circumvented by simply shrinking the first string by 1 character. Second issue is a bit more subtle. **`StaticStrings`** of different lengths are considered different types and thus cannot access each other's private members. Fortunately there's a way to fix it without exposing the data to unrelated classes. Friend specification can be introduced as a template, meaning we can give access to a range of types with a single statement.
+Now it's time to implement the main functionality - the ability to add two **`StaticStrings`** together. The operation itself is pretty straightforward with two minor details. First of all, we need to consider the null character when joining the strings, but that can be circumvented by simply shrinking the first string by 1 character. The second issue is a bit more subtle. **`StaticStrings`** of different lengths are considered different types and thus cannot access each other's private members. Fortunately, there's a way to fix it without exposing the data to unrelated classes. Friend specification can be introduced as a template, meaning we can give access to a range of types with a single statement.
 
 ![](./concatenation.jpg)
 
@@ -219,7 +224,7 @@ constexpr bool operator==(const StaticString<N> &rhs) const
 }
 ```
 
-As a bonus we can provide a getter for data pointer for easier printing later on.
+As a bonus, we can provide a getter for data pointer for easier printing later on.
 
 ```cpp
 constexpr const char* data() const
@@ -228,7 +233,7 @@ constexpr const char* data() const
 }
 ```
 
-Finally we can add tests for joining strings to see if they work as planned
+Finally, we can add tests for joining strings to see if they work as planned
 
 ```cpp
 namespace tests
@@ -273,8 +278,12 @@ __attribute__((noinline)) void test()
   401198:       c3                      ret
   401199:       0f 1f 80 00 00 00 00    nop    DWORD PTR [rax+0x0]
 ```
+
 As you can see the compiler got rid of most of the copies and reassignments and leaves us with just the evaluated result passed to **`puts`** function.
 
 ## Summary
-In this article we explored the possibility to join strings at compile time. The feat itself might not be so impresive, but it's one of things needed to generate a transition table at compile time. As always, you can find the code in my github repository: ([link](https://github.com/AdamsPL/state-machine/))
-In the next article we'll play a bit with the type system, trying to extract as much information as possible with a hint of functional programming ;). Stay tuned!
+In this article, we explored the possibility to join strings at compile time. The feat itself might not be so impressive, but it's one of the things needed to generate a transition table at compile time. As always, you can find the code in my GitHub repository: ([link](https://github.com/AdamsPL/state-machine/))
+
+In the next article, we'll play a bit with the type system, trying to extract as much information as possible with a hint of functional programming ;) 
+
+Stay tuned!
