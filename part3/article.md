@@ -276,4 +276,5 @@ __attribute__((noinline)) void test()
 As you can see the compiler got rid of most of the copies and reassignments and leaves us with just the evaluated result passed to **`puts`** function.
 
 ## Summary
-In this article we explored the possibility to join strings at compile time. The feat itself might not be so impresive, but it's one of things needed to generate a transition table at compile time. In the next article we'll play a bit with the type system, trying to extract as much information as possible with a hint of functional programming ;). Stay tuned!
+In this article we explored the possibility to join strings at compile time. The feat itself might not be so impresive, but it's one of things needed to generate a transition table at compile time. As always, you can find the code in my github repository: ([link](https://github.com/AdamsPL/state-machine/))
+In the next article we'll play a bit with the type system, trying to extract as much information as possible with a hint of functional programming ;). Stay tuned!
