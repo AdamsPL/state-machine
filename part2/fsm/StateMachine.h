@@ -9,8 +9,8 @@ class StateMachine
 public:
     StateMachine() = default;
 
-    StateMachine(States... states)
-        : states(std::move(states)...)
+    StateMachine(States &&... states)
+        : states(std::forward<States>(states)...)
     {
     }
 
