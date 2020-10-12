@@ -16,5 +16,6 @@ int main()
     door.handle(LockEvent{123});
     door.handle(LockEvent{123});
     door.handle(UnlockEvent{123});
+    door.handle(123); // wont compile because of unknown type
     return 0;
 }

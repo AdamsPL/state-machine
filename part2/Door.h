@@ -18,11 +18,13 @@ struct CloseEvent
 
 struct LockEvent
 {
+    explicit LockEvent(uint32_t newKey) : newKey(newKey) {}
     uint32_t newKey;    
 };
 
 struct UnlockEvent
 {
+    explicit UnlockEvent(uint32_t key) : key(key) {}
     uint32_t key;    
 };
 
@@ -80,4 +82,5 @@ private:
     uint32_t key;
 };
 
-using Door = StateMachine<ClosedState, OpenState, LockedState>;
+using Door = StateMachine<States<ClosedState, OpenState, LockedState>,
+                          Events<CloseEvent, OpenEvent, LockEvent, UnlockEvent>>;
