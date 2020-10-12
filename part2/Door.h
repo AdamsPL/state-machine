@@ -34,6 +34,17 @@ struct ClosedState : public Will<ByDefault<Nothing>,
                                  On<LockEvent, TransitionTo<LockedState>>,
                                  On<OpenEvent, TransitionTo<OpenState>>>
 {
+    ClosedState(bool autoLock = false) : autoLock(autoLock) {}
+
+    auto onEnter(const CloseEvent&) -> Maybe<TransitionTo<LockedState>>
+    {
+        if (autoLock)
+            return TransitionTo<LockedState>{};
+        else
+            return Nothing{};
+    }
+
+    bool autoLock;
 };
 
 struct OpenState : public Will<ByDefault<Nothing>,
@@ -51,9 +62,10 @@ public:
     {
     }
 
-    void onEnter(const LockEvent& e)
+    auto onEnter(const LockEvent& e)
     {
         key = e.newKey;
+        return Nothing{};
     }
 
     Maybe<TransitionTo<ClosedState>> handle(const UnlockEvent& e)
