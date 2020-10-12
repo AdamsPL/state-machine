@@ -28,8 +28,8 @@ public:
         handleBy(event, *this);
     }
 
-    template <typename Event, typename Machine>
-    void handleBy(const Event& event, Machine& machine)
+    template <typename Event>
+    void handleBy(const Event& event, StateMachine& machine)
     {
         auto passEventToState = [&machine, &event] (auto statePtr) {
             auto action = statePtr->handle(event);
