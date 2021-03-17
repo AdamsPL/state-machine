@@ -30,7 +30,7 @@ struct Types
 };
 ```
 
-We'll use this structure to bind several types together and manipulate them as a set. Even though it's not a perfect representation of a set (`Types<A, B> != Types<B, A> != Types<B, A, A>`) it's more then enough for our use :) . The first operation we'd need is combining several types into one, which could be implemented like this:
+We'll use this structure to bind several types together and manipulate them as a set. Even though it's not a perfect representation of a set (`Types<A, B> != Types<B, A> != Types<B, A, A>`) it's more than enough for our use :) . The first operation we'd need is combining several types into one, which could be implemented like this:
 
 ```cpp
 template <typename... Lhs, typename... Rhs>
