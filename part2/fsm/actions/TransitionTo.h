@@ -9,7 +9,7 @@ public:
 	{
         leave(prevState, event);
 		TargetState& newState = machine.template transitionTo<TargetState>();
-        enter(newState, event);
+        enter(newState, event).execute(machine, newState, event);
 	}
 
 private:
@@ -23,8 +23,9 @@ private:
         return state.onLeave(event);
     }
 
-    void enter(...)
+    auto enter(...) -> Nothing
     {
+        return {};
     }
 
     template <typename State, typename Event>

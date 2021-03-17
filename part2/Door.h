@@ -18,11 +18,13 @@ struct CloseEvent
 
 struct LockEvent
 {
+    explicit LockEvent(uint32_t newKey) : newKey(newKey) {}
     uint32_t newKey;    
 };
 
 struct UnlockEvent
 {
+    explicit UnlockEvent(uint32_t key) : key(key) {}
     uint32_t key;    
 };
 
@@ -34,6 +36,17 @@ struct ClosedState : public Will<ByDefault<Nothing>,
                                  On<LockEvent, TransitionTo<LockedState>>,
                                  On<OpenEvent, TransitionTo<OpenState>>>
 {
+    ClosedState(bool autoLock = false) : autoLock(autoLock) {}
+
+    auto onEnter(const CloseEvent&) -> Maybe<TransitionTo<LockedState>>
+    {
+        if (autoLock)
+            return TransitionTo<LockedState>{};
+        else
+            return Nothing{};
+    }
+
+    bool autoLock;
 };
 
 struct OpenState : public Will<ByDefault<Nothing>,
@@ -51,9 +64,10 @@ public:
     {
     }
 
-    void onEnter(const LockEvent& e)
+    auto onEnter(const LockEvent& e)
     {
         key = e.newKey;
+        return Nothing{};
     }
 
     Maybe<TransitionTo<ClosedState>> handle(const UnlockEvent& e)
@@ -68,4 +82,5 @@ private:
     uint32_t key;
 };
 
-using Door = StateMachine<ClosedState, OpenState, LockedState>;
+using Door = StateMachine<States<ClosedState, OpenState, LockedState>,
+                          Events<CloseEvent, OpenEvent, LockEvent, UnlockEvent>>;

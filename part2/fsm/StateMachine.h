@@ -3,14 +3,35 @@
 #include <tuple>
 #include <variant>
 
-template <typename... States>
-class StateMachine
+template <typename... _States>
+class States;
+
+template <typename... _Events>
+class Events;
+
+template <typename States, typename Events>
+class StateMachine;
+
+namespace details {
+    template<class... B>
+        using or_ = std::disjunction<B...>;
+
+    template <typename T, typename Tuple>
+        struct has_type;
+
+    template <typename T, typename... Us>
+        struct has_type<T, std::tuple<Us...>> : or_<std::is_same<T, Us>...> {};
+}
+
+template <typename... _States, typename... _Events>
+class StateMachine<States<_States...>, Events<_Events...>>
 {
+    using events = std::tuple<_Events...>;
 public:
     StateMachine() = default;
 
-    StateMachine(States... states)
-        : states(std::move(states)...)
+    StateMachine(_States &&... states)
+        : states(std::forward<_States>(states)...)
     {
     }
 
@@ -25,11 +46,12 @@ public:
     template <typename Event>
     void handle(const Event& event)
     {
+        static_assert(details::has_type<Event, events>::value, "Unhandled event type");
         handleBy(event, *this);
     }
 
-    template <typename Event, typename Machine>
-    void handleBy(const Event& event, Machine& machine)
+    template <typename Event>
+    void handleBy(const Event& event, StateMachine& machine)
     {
         auto passEventToState = [&machine, &event] (auto statePtr) {
             auto action = statePtr->handle(event);
@@ -39,6 +61,6 @@ public:
     }
 
 private:
-    std::tuple<States...> states;
-    std::variant<States*...> currentState{ &std::get<0>(states) };
+    std::tuple<_States...> states;
+    std::variant<_States*...> currentState{ &std::get<0>(states) };
 };
