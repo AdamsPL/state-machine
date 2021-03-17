@@ -133,7 +133,7 @@ struct Maximum
         return Maximum<std::max(X, Y)>{};
     }
 
-    static constexpr auto value() const
+    static constexpr auto value()
     {
         return X;
     }
